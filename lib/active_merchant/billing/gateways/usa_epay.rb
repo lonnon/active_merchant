@@ -2,21 +2,25 @@ module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
         
     class UsaEpayGateway < Gateway
-    	URL = 'https://www.usaepay.com/gate.php'
+      URLS = {:test => 'https://sandbox.usaepay.com/gate',
+              :live => 'https://www.usaepay.com/gate'}
+
+      API_VERSION = '2.16.0'
       
-      self.supported_cardtypes = [:visa, :master, :american_express]
+      self.supported_cardtypes = [:visa, :master, :american_express,
+                                  :discover]
       self.supported_countries = ['US']
       self.homepage_url = 'http://www.usaepay.com/'
       self.display_name = 'USA ePay'
 
       TRANSACTIONS = {
-        :authorization => 'authonly',
-        :purchase => 'sale',
-        :capture => 'capture'
+        :authorization => 'cc:authonly',
+        :purchase => 'cc:sale',
+        :capture => 'cc:capture'
       }
 
       def initialize(options = {})
-        requires!(options, :login)
+        requires!(options, :source_key)
         @options = options
         super
       end  
@@ -155,9 +159,13 @@ module ActiveMerchant #:nodoc:
         }.delete_if{|k, v| v.nil?}         
       end     
 
+      def endpoint_url
+        debugger
+        URLS[test? ? :test : :live]
+      end
       
       def commit(action, parameters)
-        response = parse( ssl_post(URL, post_data(action, parameters)) )
+        response = parse( ssl_post(endpoint_url, post_data(action, parameters)) )
         
         Response.new(response[:status] == 'Approved', message_from(response), response, 
           :test => @options[:test] || test?,
@@ -182,9 +190,8 @@ module ActiveMerchant #:nodoc:
       
       def post_data(action, parameters = {})
         parameters[:command]  = TRANSACTIONS[action]
-        parameters[:key] = @options[:login]
+        parameters[:key] = @options[:source_key]
         parameters[:software] = 'Active Merchant'
-        parameters[:testmode] = @options[:test] ? 1 : 0
 
         parameters.collect { |key, value| "UM#{key}=#{CGI.escape(value.to_s)}" }.join("&")
       end
