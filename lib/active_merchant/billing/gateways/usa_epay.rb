@@ -160,7 +160,6 @@ module ActiveMerchant #:nodoc:
       end     
 
       def endpoint_url
-        debugger
         URLS[test? ? :test : :live]
       end
       
